@@ -13,6 +13,7 @@
 #define IOINTENSIVE 2
 #define DAEMON 3
 
+//arr declerations
 //maximum 200 tasks PID=index
 int taskarrivetime[200];
 int tasktype[200];
@@ -20,14 +21,64 @@ int currentstate[200];
 int taskremainingwork[200];
 int taskremainingsleep[200];
 int FIFOqueue[200];
+int CPU1[2];
+int CPU2[2];
+int CPU3[2];
+int CPU4[2];
+
+
+
+//function declerations
+int generateRequests(int);
+int taskSet(int);
+bool FIFOenqueue(int, int);
+
+
+
+
+
+
+
 
 
 int main(){
     srand(time(NULL));
-    FIFOsimulate();
+    int currProc  = generateRequests(3);
+    //FIFOsimulate();
     //MLFQsimulate();
     //AGINGsimulate();
+    printf("%d\n", currProc);
     return 0;
+}
+
+int generateRequests(int time){
+    //randomly grab a process and say it "wakes up"
+    //store PID in a list and set as an "active task" -- scheduler will be implemented later
+    int PID = rand() % 401; //gives us a 50% chance of landing between 0-200;
+    if(PID<=200 && time > taskarrivetime[PID]){
+        taskarrivetime[PID] = time;
+        tasktype[PID] = taskSet(PID);//0-159 daemons -- 160-179 I/O intensive -- 180-200 CPU intensive
+        return PID;
+    }
+    return -1;
+}
+
+int taskSet(int PID){
+    if(PID< 160){
+        taskremainingsleep[PID] = 10;
+        taskremainingwork[PID] = 2;
+        return DAEMON;
+    }
+    else if(PID< 180){
+        taskremainingsleep[PID] = 0;
+        taskremainingwork[PID] = 3;
+        return IOINTENSIVE;
+    }
+    else{
+        taskremainingsleep[PID] = 0;
+        taskremainingwork[PID] = 10;
+        return CPUINTENSIVE;
+    }
 }
 
 void FIFOsimulate(){
@@ -37,14 +88,11 @@ void FIFOsimulate(){
     while(time < SIMULATION_TIME){
         backQueue = (FIFOenqueue(generateRequests(time), backQueue)) ? (backQueue+1)%201 : backQueue;
         //enque -- generateRequests(time);
-        int currentTask = 0;
         //we need to create 4 CPUs
         //shared FIFO queue, give next in queue to available CPU
         //set some "timeslice" -- 
-        frontQueue = updateQueue(CPU1(time, frontQueue));
-        frontQueue = updateQueue(CPU2(time, frontQueue));
-        frontQueue = updateQueue(CPU3(time, frontQueue));
-        frontQueue = updateQueue(CPU4(time, frontQueue));
+        //CPU1(currentPID);
+        
         //each CPU will have some return depending on whether or not it "accepted" the process
 
 
@@ -53,7 +101,7 @@ void FIFOsimulate(){
 
 }
 
-void MLFQsimulate(){
+/*void MLFQsimulate(){
     int time = 0;
     while(time < SIMULATION_TIME){
 
@@ -75,40 +123,17 @@ void AGINGsimulate(){
         time++;
     }
 
-}
+}*/
 
-int generateRequests(int time){
-    //randomly grab a process and say it "wakes up"
-    //store PID in a list and set as an "active task" -- scheduler will be implemented later
-    int PID = rand() % 401; //gives us a 50% chance of landing between 0-200;
-    if(PID<=200 && time > taskarrivetime[PID]){
-        taskarrivetime[PID] = time;
-        tasktype[PID] = getTaskType(PID);//0-159 daemons -- 160-179 I/O intensive -- 180-200 CPU intensive
-        return PID;
-    }
-    return -1;
-}
-
-int getTaskType(int PID){
-    if(PID< 160){
-        return DAEMON;
-    }
-    else if(PID< 180){
-        return IOINTENSIVE;
-    }
-    else{
-        return CPUINTENSIVE;
-    }
-}
 
 bool FIFOenqueue(int PID, int frontQueue){
-    if(PID != -1){
+    /*if(PID != -1){
         FIFOqueue[currentposition] = PID;
         return 1;
-    }
+    }*/
     return 0;
 }
-
+/*
 int updateQueue(bool val, int frontQueue){
     if(val){
         frontQueue = (frontQueue + 1)%201;
@@ -116,7 +141,7 @@ int updateQueue(bool val, int frontQueue){
     return frontQueue;
 }
 
-bool CPU1(){
+bool CPU1(time){
     int currentPID;
     int remainingTimeslice;
     //when called we check what process is running, we will have some check to see what type of process
@@ -125,23 +150,23 @@ bool CPU1(){
 
 }
 
-bool CPU2(){
+bool CPU2(time){
     int currentPID;
     int remainingTimeslice;
     //when called we check what process is running, we will have some check to see what type of process
         remainingTimeslice--;
 }
 
-bool CPU3(){
+bool CPU3(time){
     int currentPID;
     int remainingTimeslice;
     //when called we check what process is running, we will have some check to see what type of process
         remainingTimeslice--;
 }
 
-bool CPU4(){
+bool CPU4(time){
     int currentPID;
     int remainingTimeslice;
     //when called we check what process is running, we will have some check to see what type of process
         remainingTimeslice--;
-}
+}*/
