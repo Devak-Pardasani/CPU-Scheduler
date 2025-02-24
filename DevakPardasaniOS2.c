@@ -47,9 +47,6 @@ void runProcess(int)
 
 
 
-//must have a better generate process method
-
-
 
 int main(){
     srand(time(NULL));
@@ -69,14 +66,26 @@ int main(){
 
 int generateRequests(int time){
     //randomly grab a process and say it "wakes up"
-    //store PID in a list and set as an "active task" -- scheduler will be implemented later
-    int PID = rand() % 401; //gives us a 50% chance of landing between 0-200;
-    if(PID<=200 && time > taskarrivetime[PID]){
+    int PID = -1;
+    while(!isValid(PID, time)){
+        PID = rand() % 401; //gives us a 50% chance of landing between 0-200;
+    }
+    if(PID<=200){
         taskarrivetime[PID] = time;
         tasktype[PID] = taskSet(PID);//0-159 daemons -- 160-179 I/O intensive -- 180-200 CPU intensive
         return PID;
     }
     return -1;
+}
+
+bool isValid(int PID, int time){ //helper method to make our generateRequests method funciton properly
+    if(PID > 200){
+        return true;
+    }
+    else if(taskarrivetime[PID] <= time){
+        return true;
+    }
+    return false;
 }
 
 int taskSet(int PID){
@@ -124,16 +133,6 @@ void FIFOsimulate(){
         time++;
     }
 
-}
-
-
-
-int FIFOenqueue(int PID, int backQueue){
-    if(PID != -1){
-        FIFOqueue[backQueue] = PID;
-        backQueue = (backQueue+1)%201;
-    }
-    return backQueue;
 }
 
 void runProcess(int PID){
@@ -204,4 +203,12 @@ int runCPU4(int queueNum, int time){
         CPU4[0] = -1;
     }
     return addVal;
+}
+
+int FIFOenqueue(int PID, int backQueue){
+    if(PID != -1){
+        FIFOqueue[backQueue] = PID;
+        backQueue = (backQueue+1)%201;
+    }
+    return backQueue;
 }
