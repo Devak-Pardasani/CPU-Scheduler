@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
+#include <stdbool.h>
 
 #define SIMULATION_TIME 1000
 #define NOTPRESENT -1
@@ -31,18 +32,21 @@ int main(){
 
 void FIFOsimulate(){
     int time = 0;
-    int currentposition = 0;
+    int frontQueue = 0;
+    int backQueue = 0;
     while(time < SIMULATION_TIME){
-        currentposition = (generateRequests(time, currentposition)) ? currentposition++ : currentposition;
+        backQueue = (FIFOenqueue(generateRequests(time), backQueue)) ? (backQueue+1)%201 : backQueue;
         //enque -- generateRequests(time);
         int currentTask = 0;
         //we need to create 4 CPUs
         //shared FIFO queue, give next in queue to available CPU
         //set some "timeslice" -- 
-        CPU1(time);
-        CPU2(time);
-        CPU3(time);
-        CPU4(time);
+        frontQueue = updateQueue(CPU1(time, frontQueue));
+        frontQueue = updateQueue(CPU2(time, frontQueue));
+        frontQueue = updateQueue(CPU3(time, frontQueue));
+        frontQueue = updateQueue(CPU4(time, frontQueue));
+        //each CPU will have some return depending on whether or not it "accepted" the process
+
 
         time++;
     }
@@ -97,7 +101,7 @@ int getTaskType(int PID){
     }
 }
 
-bool FIFOenqueue(int PID, int currentposition){
+bool FIFOenqueue(int PID, int frontQueue){
     if(PID != -1){
         FIFOqueue[currentposition] = PID;
         return 1;
@@ -105,18 +109,39 @@ bool FIFOenqueue(int PID, int currentposition){
     return 0;
 }
 
-void CPU1(){
+int updateQueue(bool val, int frontQueue){
+    if(val){
+        frontQueue = (frontQueue + 1)%201;
+    }
+    return frontQueue;
+}
+
+bool CPU1(){
+    int currentPID;
+    int remainingTimeslice;
+    //when called we check what process is running, we will have some check to see what type of process
+        remainingTimeslice--;
+
 
 }
 
-void CPU2(){
-
+bool CPU2(){
+    int currentPID;
+    int remainingTimeslice;
+    //when called we check what process is running, we will have some check to see what type of process
+        remainingTimeslice--;
 }
 
-void CPU3(){
-
+bool CPU3(){
+    int currentPID;
+    int remainingTimeslice;
+    //when called we check what process is running, we will have some check to see what type of process
+        remainingTimeslice--;
 }
 
-void CPU4(){
-
+bool CPU4(){
+    int currentPID;
+    int remainingTimeslice;
+    //when called we check what process is running, we will have some check to see what type of process
+        remainingTimeslice--;
 }
