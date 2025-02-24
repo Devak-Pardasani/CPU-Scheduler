@@ -31,8 +31,11 @@ int CPU4[2];
 //function declerations
 int generateRequests(int);
 int taskSet(int);
-bool FIFOenqueue(int, int);
-
+int FIFOenqueue(int, int);
+void runCPU1(int);
+void runCPU2(int);
+void runCPU3(int);
+void runCPU4(int);
 
 
 
@@ -43,11 +46,17 @@ bool FIFOenqueue(int, int);
 
 int main(){
     srand(time(NULL));
-    int currProc  = generateRequests(3);
-    //FIFOsimulate();
+    int numTasks = 0;
+    while(numTasks < 100){
+        int process = generateRequests(0);
+        if(process > 0){
+            FIFOqueue[numTasks] = process;
+            numTasks++;
+        }
+    }
+    FIFOsimulate();
     //MLFQsimulate();
     //AGINGsimulate();
-    printf("%d\n", currProc);
     return 0;
 }
 
@@ -71,7 +80,7 @@ int taskSet(int PID){
     }
     else if(PID< 180){
         taskremainingsleep[PID] = 0;
-        taskremainingwork[PID] = 3;
+        taskremainingwork[PID] = 5;
         return IOINTENSIVE;
     }
     else{
@@ -84,9 +93,18 @@ int taskSet(int PID){
 void FIFOsimulate(){
     int time = 0;
     int frontQueue = 0;
-    int backQueue = 0;
+    int backQueue = 100;
+    int numTasks = backQueue - frontQueue;
+    CPU1[0] = -1;
+    CPU2[0] = -1;
+    CPU3[0] = -1;
+    CPU4[0] = -1;
     while(time < SIMULATION_TIME){
-        backQueue = (FIFOenqueue(generateRequests(time), backQueue)) ? (backQueue+1)%201 : backQueue;
+        if(numTasks < 200){
+            backQueue = (FIFOenqueue(generateRequests(time), backQueue));
+        }
+        backQueue = runCPU1(backQueue)
+
         //enque -- generateRequests(time);
         //we need to create 4 CPUs
         //shared FIFO queue, give next in queue to available CPU
@@ -101,72 +119,59 @@ void FIFOsimulate(){
 
 }
 
-/*void MLFQsimulate(){
-    int time = 0;
-    while(time < SIMULATION_TIME){
-
-        // int currentTask = nextInQUEUE
 
 
-        time++;
+int FIFOenqueue(int PID, int backQueue){
+    if(PID != -1){
+        FIFOqueue[backQueue] = PID;
+        backQueue = (backQueue+1)%201;
+    }
+    return backQueue;
+}
+
+void runCPU1(int queueNum){
+    if(FIFOqueue[queueNum] == -1){
+        return 0;
     }
 
-}
-
-void AGINGsimulate(){
-    int time = 0;
-    while(time < SIMULATION_TIME){
-        //enque -- generateRequests(time);
-        // int currentTask = nextInQUEUE
-
-
-        time++;
+    if(CPU1[0] == -1){
+        CPU1[0] = FIFOqueue[queueNum];
+        CPU1[1] = 5; //corresponds to how many clock ticks we give each process
     }
 
-}*/
-
-
-bool FIFOenqueue(int PID, int frontQueue){
-    /*if(PID != -1){
-        FIFOqueue[currentposition] = PID;
-        return 1;
-    }*/
-    return 0;
+    
+    if(taskremainingwork[CPU1[0]])
 }
-/*
-int updateQueue(bool val, int frontQueue){
-    if(val){
-        frontQueue = (frontQueue + 1)%201;
+
+void runCPU2(int queueNum){
+    if(FIFOqueue[queueNum] == -1){
+        return 0;
     }
-    return frontQueue;
+    if(CPU2[0] == -1){
+        CPU2[0] = FIFOqueue[queueNum];
+        CPU2[1] = 5; //corresponds to how many clock ticks we give each process
+    }
+    //check process type and run the process accordingly
 }
 
-bool CPU1(time){
-    int currentPID;
-    int remainingTimeslice;
-    //when called we check what process is running, we will have some check to see what type of process
-        remainingTimeslice--;
-
-
+void runCPU3(int queueNum){
+    if(FIFOqueue[queueNum] == -1){
+        return 0;
+    }
+    if(CPU3[0] == -1){
+        CPU3[0] = FIFOqueue[queueNum];
+        CPU3[1] = 5; //corresponds to how many clock ticks we give each process
+    }
+    //check process type and run the process accordingly
 }
 
-bool CPU2(time){
-    int currentPID;
-    int remainingTimeslice;
-    //when called we check what process is running, we will have some check to see what type of process
-        remainingTimeslice--;
+void runCPU4(int queueNum){
+    if(FIFOqueue[queueNum] == -1){
+        return 0;
+    }
+    if(CPU4[0] == -1){
+        CPU4[0] = FIFOqueue[queueNum];
+        CPU4[1] = 5; //corresponds to how many clock ticks we give each process
+    }
+    //check process type and run the process accordingly
 }
-
-bool CPU3(time){
-    int currentPID;
-    int remainingTimeslice;
-    //when called we check what process is running, we will have some check to see what type of process
-        remainingTimeslice--;
-}
-
-bool CPU4(time){
-    int currentPID;
-    int remainingTimeslice;
-    //when called we check what process is running, we will have some check to see what type of process
-        remainingTimeslice--;
-}*/
