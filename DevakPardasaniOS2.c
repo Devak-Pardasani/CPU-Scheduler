@@ -21,6 +21,10 @@ int currentstate[200];
 int taskremainingwork[200];
 int taskremainingsleep[200];
 int FIFOqueue[200];
+int taskfinishtime[200];
+
+//holds the process in each CPU
+//holds the PID and time left on CPU
 int CPU1[2];
 int CPU2[2];
 int CPU3[2];
@@ -32,10 +36,11 @@ int CPU4[2];
 int generateRequests(int);
 int taskSet(int);
 int FIFOenqueue(int, int);
-void runCPU1(int);
-void runCPU2(int);
-void runCPU3(int);
-void runCPU4(int);
+int runCPU1(int, int);
+int runCPU2(int, int);
+int runCPU3(int, int);
+int runCPU4(int, int);
+void runProcess(int)
 
 
 
@@ -94,26 +99,26 @@ void FIFOsimulate(){
     int time = 0;
     int frontQueue = 0;
     int backQueue = 100;
-    int numTasks = backQueue - frontQueue;
+    int numTasks = 100;
     CPU1[0] = -1;
     CPU2[0] = -1;
     CPU3[0] = -1;
     CPU4[0] = -1;
     while(time < SIMULATION_TIME){
+        //enque -- generateRequests(time);
         if(numTasks < 200){
             backQueue = (FIFOenqueue(generateRequests(time), backQueue));
         }
-        backQueue = runCPU1(backQueue)
-
-        //enque -- generateRequests(time);
         //we need to create 4 CPUs
         //shared FIFO queue, give next in queue to available CPU
-        //set some "timeslice" -- 
-        //CPU1(currentPID);
-        
         //each CPU will have some return depending on whether or not it "accepted" the process
+        frontQueue = (frontQueue + runCPU1(frontQueue, time))%201;
+        frontQueue = (frontQueue + runCPU2(frontQueue, time))%201;
+        frontQueue = (frontQueue + runCPU3(frontQueue, time))%201;
+        frontQueue = (frontQueue + runCPU4(frontQueue, time))%201;
 
-
+        
+        numTasks = backQueue - frontQueue; //calculate numtasks
         time++;
     }
 
@@ -129,49 +134,70 @@ int FIFOenqueue(int PID, int backQueue){
     return backQueue;
 }
 
-void runCPU1(int queueNum){
-    if(FIFOqueue[queueNum] == -1){
-        return 0;
-    }
+void runProcess(int PID){
 
+}
+
+int runCPU1(int queueNum, int time){
+    int PID = FIFOqueue[queueNum];
+    int addVal = 0;
     if(CPU1[0] == -1){
-        CPU1[0] = FIFOqueue[queueNum];
+        CPU1[0] = PID;
         CPU1[1] = 5; //corresponds to how many clock ticks we give each process
+        addVal++;
     }
-
-    
-    if(taskremainingwork[CPU1[0]])
+    runProcess(PID);
+    if(taskremainingwork[CPU1[0]] == 0){
+        taskfinishtime[CPU1[0]] = time;
+        CPU1[0] = -1;
+    }
+    return addVal;
 }
 
-void runCPU2(int queueNum){
-    if(FIFOqueue[queueNum] == -1){
-        return 0;
-    }
+int runCPU2(int queueNum, int time){
+    int PID = FIFOqueue[queueNum];
+    int addVal = 0;
     if(CPU2[0] == -1){
-        CPU2[0] = FIFOqueue[queueNum];
+        CPU2[0] = PID;
         CPU2[1] = 5; //corresponds to how many clock ticks we give each process
+        addVal++;
     }
-    //check process type and run the process accordingly
+    runProcess(PID);
+    if(taskremainingwork[CPU2[0]] == 0){
+        taskfinishtime[CPU2[0]] = time;
+        CPU2[0] = -1;
+    }
+    return addVal;
 }
 
-void runCPU3(int queueNum){
-    if(FIFOqueue[queueNum] == -1){
-        return 0;
-    }
+int runCPU3(int queueNum, int time){
+    int PID = FIFOqueue[queueNum];
+    int addVal = 0;
     if(CPU3[0] == -1){
-        CPU3[0] = FIFOqueue[queueNum];
+        CPU3[0] = PID;
         CPU3[1] = 5; //corresponds to how many clock ticks we give each process
+        addVal++;
     }
-    //check process type and run the process accordingly
+    runProcess(PID);
+    if(taskremainingwork[CPU3[0]] == 0){
+        taskfinishtime[CPU3[0]] = time;
+        CPU3[0] = -1;
+    }
+    return addVal;
 }
 
-void runCPU4(int queueNum){
-    if(FIFOqueue[queueNum] == -1){
-        return 0;
-    }
+int runCPU4(int queueNum, int time){
+    int PID = FIFOqueue[queueNum];
+    int addVal = 0;
     if(CPU4[0] == -1){
-        CPU4[0] = FIFOqueue[queueNum];
+        CPU4[0] = PID;
         CPU4[1] = 5; //corresponds to how many clock ticks we give each process
+        addVal++;
     }
-    //check process type and run the process accordingly
+    runProcess(PID);
+    if(taskremainingwork[CPU4[0]] == 0){
+        taskfinishtime[CPU4[0]] = time;
+        CPU4[0] = -1;
+    }
+    return addVal;
 }
