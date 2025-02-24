@@ -3,6 +3,7 @@
 #include <time.h>
 #include <stdbool.h>
 
+
 #define SIMULATION_TIME 1000
 #define NOTPRESENT -1
 #define SLEEPING 0
@@ -13,6 +14,7 @@
 #define IOINTENSIVE 2
 #define DAEMON 3
 
+//not using structs
 //arr declerations
 //maximum 200 tasks PID=index
 int taskarrivetime[200];
@@ -45,7 +47,7 @@ void runProcess(int)
 
 
 
-
+//must have a better generate process method
 
 
 
@@ -135,7 +137,8 @@ int FIFOenqueue(int PID, int backQueue){
 }
 
 void runProcess(int PID){
-
+    //check Process type
+    //return something
 }
 
 int runCPU1(int queueNum, int time){
@@ -147,7 +150,8 @@ int runCPU1(int queueNum, int time){
         addVal++;
     }
     runProcess(PID);
-    if(taskremainingwork[CPU1[0]] == 0){
+    CPU1[1]--;//says that we've run for 1 clock tick
+    if(taskremainingwork[CPU1[0]] == 0){ //if the process has run to completion, we do this
         taskfinishtime[CPU1[0]] = time;
         CPU1[0] = -1;
     }
