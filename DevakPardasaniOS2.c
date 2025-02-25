@@ -46,7 +46,16 @@ int taskpriority[MAX_TASKS];
 int CPU_PID[4];
 int CPU_remainingSlice[4];
 
-
+//measures
+int systemLoadSum = 0;
+int loadTicks = 0;
+int finishedCount = 0;
+long totalTurnaroundCPU = 0;
+long totalTurnaroundIO = 0;
+long totalTurnaroundDaemon = 0;
+int finishedCPU = 0;
+int finishedIO = 0;
+int finishedDaemon = 0;
 
 //function declerations
 int generateRequests(int, int);
@@ -69,21 +78,30 @@ void MLFQsimulate(void);
 
 int main(){
     srand(time(NULL));
+
     initializeTasks();
     initializeStartTasks();
     //FIFOsimulate();
 
     MLFQsimulate();
-    //AGINGsimulate();
-    int numTasks = 0;
-    for(int i = 0; i < MAX_TASKS; i++){
-        if(currentstate[i] == FINISHED){
-            int responseTime = taskfinishtime[i] - taskarrivetime[i];
-            printf("Task %d response time: %d\n", i, responseTime);
-            numTasks++;
-        }
-    }
-    printf("%d\n", numTasks);
+
+    double averageLoad = (double)systemLoadSum / loadTicks;
+    
+    // Throughput: finishedCount is number of tasks that reached FINISHED state.
+    double throughput = (double)finishedCount / SIMULATION_TIME;
+    
+    // Calculate average turnaround times per class.
+    double avgTurnaroundCPU = finishedCPU > 0 ? (double)totalTurnaroundCPU / finishedCPU : 0;
+    double avgTurnaroundIO = finishedIO > 0 ? (double)totalTurnaroundIO / finishedIO : 0;
+    double avgTurnaroundDaemon = finishedDaemon > 0 ? (double)totalTurnaroundDaemon / finishedDaemon : 0;
+    
+    printf("Average System Load: %.2f\n", averageLoad);
+    printf("Throughput (tasks finished per tick): %.4f\n", throughput);
+    printf("Average Turnaround Time for CPU-Intensive Tasks: %.2f\n", avgTurnaroundCPU);
+    printf("Average Turnaround Time for I/O-Intensive Tasks: %.2f\n", avgTurnaroundIO);
+    printf("Average Turnaround Time for Daemon Tasks: %.2f\n", avgTurnaroundDaemon);
+    
+    return 0;
     return 0;
 }
 
@@ -182,6 +200,19 @@ void runCPU(int cpuIndex, int time) {
         taskfinishtime[PID] = time;
         currentstate[PID] = FINISHED;
         CPU_PID[cpuIndex] = NOTPRESENT;
+
+        finishedCount++;
+        int turnaround = time - taskarrivetime[PID];
+        if (tasktype[PID] == CPUINTENSIVE) {
+            totalTurnaroundCPU += turnaround;
+            finishedCPU++;
+        } else if (tasktype[PID] == IOINTENSIVE) {
+            totalTurnaroundIO += turnaround;
+            finishedIO++;
+        } else if (tasktype[PID] == DAEMON) {
+            totalTurnaroundDaemon += turnaround;
+            finishedDaemon++;
+        }
     }
     
     //if the process has run out of timeslice we:
@@ -233,6 +264,23 @@ void updateIOWaitTasks(int time) {
 void FIFOsimulate(void) {
     int time = 0;
     while (time < SIMULATION_TIME) {
+
+        int loadCount = 0;
+        int tempFront = queueFront;
+        while (tempFront != queueBack) {
+            loadCount++;
+            tempFront = (tempFront + 1) % MAX_TASKS;
+        }
+        
+        
+        for (int j = 0; j < 4; j++) {
+            if (CPU_PID[j] != NOTPRESENT) {
+                loadCount++;
+            }
+        }
+        systemLoadSum += loadCount;
+        loadTicks++;
+
         int newPID = generateRequests(time, 20); //gives us a 20% probablity of getting a new task
         if (newPID != -1) {
             if (tasktype[newPID] != DAEMON)
@@ -304,7 +352,32 @@ void MLFQsimulate(void) {
 
     int time = 0;
     while (time < SIMULATION_TIME) {
-       
+
+        int loadCount = 0;
+        
+        int i = highFront;
+        while(i != highBack) {
+            loadCount++;
+            i = (i+1) % QUEUE_SIZE;
+        }
+        i = medFront;
+        while(i != medBack) {
+            loadCount++;
+            i = (i+1) % QUEUE_SIZE;
+        }
+        i = lowFront;
+        while(i != lowBack) {
+            loadCount++;
+            i = (i+1) % QUEUE_SIZE;
+        }
+        for (int j = 0; j < 4; j++) {
+            if (CPU_PID[j] != NOTPRESENT) {
+                loadCount++;
+            }
+        }
+        systemLoadSum += loadCount;
+        loadTicks++;
+
         int newPID = generateRequests(time, 20); //20 percent chance per tick
         if (newPID != -1) {
             if (tasktype[newPID] != DAEMON) { //every new task is given highest priority to start
