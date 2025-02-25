@@ -4,48 +4,52 @@
 #include <stdbool.h>
 
 
-#define SIMULATION_TIME 200
+#define SIMULATION_TIME 1000
 #define NOTPRESENT -1
 #define SLEEPING 0
 #define READY 1
 #define RUNNING  2
 #define IO_WAIT  3
+#define FINISHED 4
 #define CPUINTENSIVE 1
 #define IOINTENSIVE 2
 #define DAEMON 3
+#define MAX_TASKS 200
+
 
 //not using structs
 //arr declerations
 //maximum 200 tasks PID=index
-int taskarrivetime[200];
-int tasktype[200];
-int currentstate[200];
-int taskremainingwork[200];
-int taskremainingsleep[200];
-int FIFOqueue[200];
-int taskfinishtime[200];
+int taskarrivetime[MAX_TASKS];
+int tasktype[MAX_TASKS];
+int currentstate[MAX_TASKS];
+int taskremainingwork[MAX_TASKS];
+int taskremainingsleep[MAX_TASKS];
+int taskfinishtime[MAX_TASKS];
 
 
-int FIFOqueue[200];
+int FIFOqueue[MAX_TASKS];
 int queueFront = 0;
 int queueBack = 0; 
 
 
 int CPU_PID[4];
-int CPUremainingSlice[4];
+int CPU_remainingSlice[4];
 
 
 
 //function declerations
 int generateRequests(int, int);
 int taskSet(int);
+void shuffleArray(int[], int);
 int FIFOenqueue(int);
-void initializeTasks();
+void initializeTasks(void);
 void updateDaemons(int);
 void updateIOWaitTasks(int);
-void FIFOsimulate();
+void FIFOsimulate(void);
 int FIFOenqueue(int);
-int FIFOdequeue();
+int FIFOdequeue(void);
+void initializeStartTasks(void);
 
 
 
@@ -54,46 +58,70 @@ int FIFOdequeue();
 
 int main(){
     srand(time(NULL));
-    int numTasks = 0;
     initializeTasks();
-    while(numTasks < 100){
-        int process = generateRequests(0, 100);
-        FIFOqueue[numTasks] = process;
-        numTasks++;
-    }
+    initializeStartTasks();
     FIFOsimulate();
 
     //MLFQsimulate();
     //AGINGsimulate();
-    for(int i = 0; i < 200; i++){
-        int responseTime = taskfinishtime[i] - taskarrivetime[i];
-        printf("Task%d response time: ", i, responseTime);
+    int numTasks = 0;
+    for(int i = 0; i < MAX_TASKS; i++){
+        if(currentstate[i] == FINISHED){
+            int responseTime = taskfinishtime[i] - taskarrivetime[i];
+            printf("Task %d response time: %d\n", i, responseTime);
+            numTasks++;
+        }
     }
+    printf("%d\n", numTasks);
     return 0;
 }
 
-void initializeTasks() {
-    for (int i = 0; i < 200; i++) {
+void initializeStartTasks(void) {
+    int pids[MAX_TASKS];
+    for (int i = 0; i < MAX_TASKS; i++) {
+        pids[i] = i;
+    }
+    
+    shuffleArray(pids, MAX_TASKS);
+    
+    
+    int count = 0;
+    for (int i = 0; i < MAX_TASKS && count < 100; i++) {
+        int PID = pids[i];
+        taskarrivetime[PID] = 0;
+        tasktype[PID] = taskSet(PID);
+        if (tasktype[PID] == DAEMON) { //start sleeping
+            currentstate[PID] = SLEEPING;
+        } else {
+            currentstate[PID] = READY;
+            FIFOenqueue(PID); // enqueue only if task is ready
+        }
+        count++;
+    }
+}
+
+void initializeTasks(void) {
+    for (int i = 0; i < MAX_TASKS; i++) {
         taskarrivetime[i] = NOTPRESENT;
         currentstate[i] = NOTPRESENT;
-        taskfinishtime[i] = NOTPRESENT;
+        taskfinishtime[i] = SIMULATION_TIME;
     }
     for (int i = 0; i < 4; i++) {
         CPU_PID[i] = NOTPRESENT;
-        CPUremainingSlice[i] = 0;
+        CPU_remainingSlice[i] = 0;
     }
     queueFront = 0;
     queueBack = 0;
 }
 
 int generateRequests(int time, int prob) {
-    if (rand() % 100 >= prob) { //gives us a prob% chance of 
+    if (rand() % 100 > prob) { //gives us a prob% chance of 
         return -1; 
     }
 
     int PID;
-    for (int i = 0; i < 200; i++) {
-        PID = rand() % 200;  
+    for (int i = 0; i < 1000; i++) {
+        PID = rand() % MAX_TASKS;  
         if (taskarrivetime[PID] == NOTPRESENT) {
             taskarrivetime[PID] = time;
             tasktype[PID] = taskSet(PID);
@@ -111,7 +139,7 @@ int generateRequests(int time, int prob) {
 int taskSet(int PID){
     if(PID< 160){
         taskremainingsleep[PID] = 10;
-        taskremainingwork[PID] = 2;
+        taskremainingwork[PID] = 6;
         return DAEMON;
     }
     else if(PID< 180){
@@ -136,17 +164,17 @@ void runCPU(int cpuIndex, int time) {
     //we say the task has run for one clock tick
     if (taskremainingwork[PID] > 0)
         taskremainingwork[PID]--;
-    CPUremainingSlice[cpuIndex]--;
+    CPU_remainingSlice[cpuIndex]--;
     
     
     if (taskremainingwork[PID] <= 0) { //checking to see if the task has completed
         taskfinishtime[PID] = time;
-        currentstate[PID] = NOTPRESENT;
+        currentstate[PID] = FINISHED;
         CPU_PID[cpuIndex] = NOTPRESENT;
     }
     
     //if the process has run out of clock ticks we:
-    else if (CPUremainingSlice[cpuIndex] <= 0) {
+    else if (CPU_remainingSlice[cpuIndex] <= 0) {
         if (tasktype[PID] == DAEMON) { //put it to sleep if daemon
             currentstate[PID] = SLEEPING;
             taskremainingsleep[PID] = 10;  
@@ -165,7 +193,7 @@ void runCPU(int cpuIndex, int time) {
 
 void updateDaemons(int time) {
     int PID;
-    for (PID = 0; PID < 200; PID++) {
+    for (PID = 0; PID < MAX_TASKS; PID++) {
         if (tasktype[PID] == DAEMON && currentstate[PID] == SLEEPING) {
             if (taskremainingsleep[PID] > 0) { //it stays sleeping but we count for 1 sleep
                 taskremainingsleep[PID]--;
@@ -179,7 +207,7 @@ void updateDaemons(int time) {
 }
 
 void updateIOWaitTasks(int time) {
-    for (int PID = 0; PID < 200; PID++) {
+    for (int PID = 0; PID < MAX_TASKS; PID++) {
         if (tasktype[PID] == IOINTENSIVE && currentstate[PID] == IO_WAIT) {
             if (taskremainingsleep[PID] > 0)
                 taskremainingsleep[PID]--;
@@ -191,7 +219,7 @@ void updateIOWaitTasks(int time) {
     }
 }
 
-void FIFOsimulate() {
+void FIFOsimulate(void) {
     int time = 0;
     while (time < SIMULATION_TIME) {
         int newPID = generateRequests(time, 20); //Gives us a 20% probablity of getting a new task
@@ -210,7 +238,7 @@ void FIFOsimulate() {
                 int PID = FIFOdequeue();
                 if (PID != -1 && currentstate[PID] == READY) {
                     CPU_PID[i] = PID;
-                    CPUremainingSlice[i] = 5;  //gives each process a 5 clock tick duration
+                    CPU_remainingSlice[i] = 5;  //gives each process a 5 clock tick duration
                     currentstate[PID] = RUNNING;
                 }
             }
@@ -228,16 +256,29 @@ void FIFOsimulate() {
 int FIFOenqueue(int PID){
     if(PID != -1){
         FIFOqueue[queueBack] = PID;
-        queueBack = (queueBack+1)%200;
+        queueBack = (queueBack+1)%MAX_TASKS;
     }
     return queueBack;
 }
 
-int FIFOdequeue() {
+int FIFOdequeue(void) {
     if (queueFront == queueBack) {  // Queue empty.
         return -1;
     }
     int PID = FIFOqueue[queueFront];
-    queueFront = (queueFront + 1) % 200;
+    queueFront = (queueFront + 1) % MAX_TASKS;
     return PID;
+}
+
+void swap(int *a, int *b) {
+    int temp = *a;
+    *a = *b;
+    *b = temp;
+}
+
+void shuffleArray(int arr[], int n) {
+    for (int i = n - 1; i > 0; i--) {
+        int j = rand() % (i + 1);
+        swap(&arr[i], &arr[j]);
+    }
 }
