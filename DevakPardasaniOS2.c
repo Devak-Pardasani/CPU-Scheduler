@@ -3,16 +3,13 @@
 #include <time.h>
 #include <stdbool.h>
 
-#define READY 1
+
 #define SIMULATION_TIME 1000
 #define NOTPRESENT -1
 #define SLEEPING 0
-#define RUNNINGONCPU1 1
-#define RUNNINGONCPU2 2
-#define RUNNINGONCPU3 3
-#define RUNNINGONCPU4 4
-
-#define INQUEUE1 11
+#define READY 1
+#define RUNNING  2
+#define IO_WAIT  3
 #define CPUINTENSIVE 1
 #define IOINTENSIVE 2
 #define DAEMON 3
@@ -44,7 +41,11 @@ int generateRequests(int, int);
 int taskSet(int);
 int FIFOenqueue(int);
 void initializeTasks();
-void updateDaemons(int time);
+void updateDaemons(int);
+void updateIOWaitTasks(int);
+void FIFOsimulate();
+int FIFOenqueue(int);
+int FIFOdequeue();
 
 
 
@@ -80,7 +81,7 @@ void initializeTasks() {
     queueBack = 0;
 }
 
-int generateRequests(int tim, int prob) {
+int generateRequests(int time, int prob) {
     if (rand() % 100 >= prob) { //gives us a prob% chance of 
         return -1; 
     }
@@ -110,44 +111,51 @@ int taskSet(int PID){
     }
     else if(PID< 180){
         taskremainingsleep[PID] = 0;
-        taskremainingwork[PID] = 5;
+        taskremainingwork[PID] = 10;
         return IOINTENSIVE;
     }
     else{
         taskremainingsleep[PID] = 0;
-        taskremainingwork[PID] = 10;
+        taskremainingwork[PID] = 20;
         return CPUINTENSIVE;
     }
 }
-
-void FIFOsimulate(){
-    int time = 0;
-    int frontQueue = 0;
-    int backQueue = 100;
-    int numTasks = 100;
+   
+void runCPU(int cpuIndex, int time) {
+    if (CPU_PID[cpuIndex] == NOTPRESENT){ //if there is no task to run we exit
+        return;  
+    }
     
-    while(time < SIMULATION_TIME){
-        
-        if(numTasks < 200){
-            backQueue = (FIFOenqueue(generateRequests(time, 20)));
+    int PID = CPU_PID[cpuIndex];
+    
+    //we say the task has run for one clock tick
+    if (taskremainingwork[PID] > 0)
+        taskremainingwork[PID]--;
+    CPUremainingSlice[cpuIndex]--;
+    
+    
+    if (taskremainingwork[PID] <= 0) { //checking to see if the task has completed
+        taskfinishtime[PID] = time;
+        currentstate[PID] = NOTPRESENT;
+        CPU_PID[cpuIndex] = NOTPRESENT;
+    }
+    
+    //if the process has run out of clock ticks we:
+    else if (CPUremainingSlice[cpuIndex] <= 0) {
+        if (tasktype[PID] == DAEMON) { //put it to sleep if daemon
+            currentstate[PID] = SLEEPING;
+            taskremainingsleep[PID] = 10;  
+        } else if (tasktype[PID] == IOINTENSIVE) { //put in in I/O wait if I/O
+            currentstate[PID] = IO_WAIT;
+            taskremainingsleep[PID] = 3; 
+        } else { //or we do nothing if CPU intensive
+            currentstate[PID] = READY;
         }
-
-
-        
-        numTasks = backQueue - frontQueue; //calculate numtasks
-        time++;
+       
+        if (currentstate[PID] == READY)  // If task is READY, re-enqueue it.
+            FIFOenqueue(PID);
+        CPU_PID[cpuIndex] = NOTPRESENT;
     }
-
-}
-
-
-
-int FIFOenqueue(int PID){
-    if(PID != -1){
-        FIFOqueue[queueBack] = PID;
-        queueBack = (queueBack+1)%200;
-    }
-    return queueBack;
 }
 
 void updateDaemons(int time) {
@@ -165,7 +173,61 @@ void updateDaemons(int time) {
     }
 }
 
-int FIFOdequeue(void) {
+void updateIOWaitTasks(int time) {
+    for (int PID = 0; PID < 200; PID++) {
+        if (tasktype[PID] == IOINTENSIVE && currentstate[PID] == IO_WAIT) {
+            if (taskremainingsleep[PID] > 0)
+                taskremainingsleep[PID]--;
+            if (taskremainingsleep[PID] == 0) {
+                currentstate[PID] = READY;
+                FIFOenqueue(PID);
+            }
+        }
+    }
+}
+
+void FIFOsimulate() {
+    int time = 0;
+    while (time < SIMULATION_TIME) {
+        int newPID = generateRequests(time, 20); //Gives us a 20% probablity of getting a new task
+        if (newPID != -1) {
+            if (tasktype[newPID] != DAEMON)
+                FIFOenqueue(newPID);
+        }
+        
+        updateDaemons(time);
+        updateIOWaitTasks(time);
+    
+        //checks to see if there is a task on the CPU
+        //if there is not, we pull one from the queue
+        for (int i = 0; i < 4; i++) { 
+            if (CPU_PID[i] == NOTPRESENT) { 
+                int PID = FIFOdequeue();
+                if (PID != -1 && currentstate[PID] == READY) {
+                    CPU_PID[i] = PID;
+                    CPUremainingSlice[i] = 5;  //gives each process a 5 clock tick duration
+                    currentstate[PID] = RUNNING;
+                }
+            }
+        }
+    
+        for (int i = 0; i < 4; i++) { //one clock tick for each CPU
+            runCPU(i, time);
+        }
+        
+        time++;
+    }
+}
+
+int FIFOenqueue(int PID){
+    if(PID != -1){
+        FIFOqueue[queueBack] = PID;
+        queueBack = (queueBack+1)%200;
+    }
+    return queueBack;
+}
+
+int FIFOdequeue() {
     if (queueFront == queueBack) {  // Queue empty.
         return -1;
     }
