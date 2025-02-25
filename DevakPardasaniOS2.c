@@ -81,9 +81,9 @@ int main(){
 
     initializeTasks();
     initializeStartTasks();
-    //FIFOsimulate();
+    FIFOsimulate();
 
-    MLFQsimulate();
+    //MLFQsimulate();
 
     double averageLoad = (double)systemLoadSum / loadTicks;
     
