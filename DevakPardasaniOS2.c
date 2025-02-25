@@ -3,23 +3,29 @@
 #include <time.h>
 #include <stdbool.h>
 
-
+#define MAX_TASKS 200
 #define SIMULATION_TIME 1000
+
+//states
 #define NOTPRESENT -1
 #define SLEEPING 0
 #define READY 1
 #define RUNNING  2
 #define IO_WAIT  3
 #define FINISHED 4
+
+//tasktypes
 #define CPUINTENSIVE 1
 #define IOINTENSIVE 2
 #define DAEMON 3
-#define MAX_TASKS 200
 
+//MLFQ parameters
+#define HIGHEST_PRIORITY 0
+#define MEDIUM_PRIORITY 1
+#define LOWEST_PRIORITY 2
+#define QUEUE_SIZE 200
 
-//not using structs
-//arr declerations
-//maximum 200 tasks PID=index
+//arr declerations - PID = index
 int taskarrivetime[MAX_TASKS];
 int tasktype[MAX_TASKS];
 int currentstate[MAX_TASKS];
@@ -27,12 +33,16 @@ int taskremainingwork[MAX_TASKS];
 int taskremainingsleep[MAX_TASKS];
 int taskfinishtime[MAX_TASKS];
 
-
+//declerations for FIFO
 int FIFOqueue[MAX_TASKS];
 int queueFront = 0;
 int queueBack = 0; 
 
+//declerations for MLFQ
+int timeSliceForPriority[3] = {3, 5, 7};
+int taskpriority[MAX_TASKS];
 
+//declerations for CPU
 int CPU_PID[4];
 int CPU_remainingSlice[4];
 
@@ -50,6 +60,7 @@ void FIFOsimulate(void);
 int FIFOenqueue(int);
 int FIFOdequeue(void);
 void initializeStartTasks(void);
+void MLFQsimulate(void);
 
 
 
@@ -60,9 +71,9 @@ int main(){
     srand(time(NULL));
     initializeTasks();
     initializeStartTasks();
-    FIFOsimulate();
+    //FIFOsimulate();
 
-    //MLFQsimulate();
+    MLFQsimulate();
     //AGINGsimulate();
     int numTasks = 0;
     for(int i = 0; i < MAX_TASKS; i++){
@@ -173,7 +184,7 @@ void runCPU(int cpuIndex, int time) {
         CPU_PID[cpuIndex] = NOTPRESENT;
     }
     
-    //if the process has run out of clock ticks we:
+    //if the process has run out of timeslice we:
     else if (CPU_remainingSlice[cpuIndex] <= 0) {
         if (tasktype[PID] == DAEMON) { //put it to sleep if daemon
             currentstate[PID] = SLEEPING;
@@ -222,7 +233,7 @@ void updateIOWaitTasks(int time) {
 void FIFOsimulate(void) {
     int time = 0;
     while (time < SIMULATION_TIME) {
-        int newPID = generateRequests(time, 20); //Gives us a 20% probablity of getting a new task
+        int newPID = generateRequests(time, 20); //gives us a 20% probablity of getting a new task
         if (newPID != -1) {
             if (tasktype[newPID] != DAEMON)
                 FIFOenqueue(newPID);
@@ -280,5 +291,78 @@ void shuffleArray(int arr[], int n) {
     for (int i = n - 1; i > 0; i--) {
         int j = rand() % (i + 1);
         swap(&arr[i], &arr[j]);
+    }
+}
+
+void MLFQsimulate(void) {
+    
+    int highQueue[QUEUE_SIZE], medQueue[QUEUE_SIZE], lowQueue[QUEUE_SIZE];
+    int highFront = 0, highBack = 0;
+    int medFront = 0, medBack = 0;
+    int lowFront = 0, lowBack = 0;
+    
+
+    int time = 0;
+    while (time < SIMULATION_TIME) {
+       
+        int newPID = generateRequests(time, 20); //20 percent chance per tick
+        if (newPID != -1) {
+            if (tasktype[newPID] != DAEMON) { //every new task is given highest priority to start
+                taskpriority[newPID] = HIGHEST_PRIORITY;
+                highQueue[highBack] = newPID;
+                highBack = (highBack + 1) % QUEUE_SIZE;
+            }
+        }
+        
+
+        updateDaemons(time);
+        updateIOWaitTasks(time);
+        
+        //The FIFO queue list is used as a helper so we must drain the list
+        //This is so our simulator can also switch between FIFO and MLFQ scheduler by just calling a different method
+        while (queueFront != queueBack) {
+            int PID = FIFOdequeue();
+            if (taskpriority[PID] == HIGHEST_PRIORITY) {
+                highQueue[highBack] = PID;
+                highBack = (highBack + 1) % QUEUE_SIZE;
+            } else if (taskpriority[PID] == 1) {  // MEDIUM priority
+                medQueue[medBack] = PID;
+                medBack = (medBack + 1) % QUEUE_SIZE;
+            } else {  // LOWEST priority
+                lowQueue[lowBack] = PID;
+                lowBack = (lowBack + 1) % QUEUE_SIZE;
+            }
+        }
+        
+        //For each CPU, if idle, schedule a task from the three local queues.
+        for (int i = 0; i < 4; i++) {
+            if (CPU_PID[i] == NOTPRESENT) {
+                int PID = -1;
+                // Try high-priority first.
+                if (highFront != highBack) {
+                    PID = highQueue[highFront];
+                    highFront = (highFront + 1) % QUEUE_SIZE;
+                } else if (medFront != medBack) {  // then medium.
+                    PID = medQueue[medFront];
+                    medFront = (medFront + 1) % QUEUE_SIZE;
+                } else if (lowFront != lowBack) {  // then low.
+                    PID = lowQueue[lowFront];
+                    lowFront = (lowFront + 1) % QUEUE_SIZE;
+                }
+                if (PID != -1 && currentstate[PID] == READY) {
+                    CPU_PID[i] = PID;
+                    //Set CPU's time slice based on the task's current priority.
+                    CPU_remainingSlice[i] = timeSliceForPriority[ taskpriority[PID] ];
+                    currentstate[PID] = RUNNING;
+                }
+            }
+        }
+        
+        //Let each CPU run one tick.
+        for (int i = 0; i < 4; i++) {
+            runCPU(i, time);
+        }
+        
+        time++;
     }
 }
