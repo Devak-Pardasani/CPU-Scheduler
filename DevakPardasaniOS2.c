@@ -4,7 +4,7 @@
 #include <stdbool.h>
 
 
-#define SIMULATION_TIME 1000
+#define SIMULATION_TIME 200
 #define NOTPRESENT -1
 #define SLEEPING 0
 #define READY 1
@@ -62,8 +62,13 @@ int main(){
         numTasks++;
     }
     FIFOsimulate();
+
     //MLFQsimulate();
     //AGINGsimulate();
+    for(int i = 0; i < 200; i++){
+        int responseTime = taskfinishtime[i] - taskarrivetime[i];
+        printf("Task%d response time: ", i, responseTime);
+    }
     return 0;
 }
 
@@ -214,6 +219,7 @@ void FIFOsimulate() {
         for (int i = 0; i < 4; i++) { //one clock tick for each CPU
             runCPU(i, time);
         }
+
         
         time++;
     }
